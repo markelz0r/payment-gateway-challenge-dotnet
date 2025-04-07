@@ -30,7 +30,9 @@ public class PaymentsController(PaymentsRepository paymentsRepository, BankProce
     public async Task<ActionResult<PostPaymentResponse?>> GetPaymentAsync(Guid id)
     {
         var payment = paymentsRepository.Get(id);
-
+        if (payment == null)
+            return new NotFoundResult();
+        
         return new OkObjectResult(payment);
     }
     

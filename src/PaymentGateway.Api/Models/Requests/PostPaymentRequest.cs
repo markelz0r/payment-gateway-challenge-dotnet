@@ -5,7 +5,9 @@ namespace PaymentGateway.Api.Models.Requests;
 
 public record PostPaymentRequest : IValidatableObject
 {
-    [Required, CreditCard]
+    [Required]
+    //[CreditCard] // This is an overkill as per requirements but is quite neat way to ensure ISO/IEC 7812 compliance
+    [RegularExpression("^[0-9]+$", ErrorMessage = "Card number must be numeric.")]
     [StringLength(19, MinimumLength = 14, ErrorMessage = "Card number must be between 14 and 19 digits.")]
     public required string CardNumber { get; init; }
 
