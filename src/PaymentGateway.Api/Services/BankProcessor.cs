@@ -17,21 +17,21 @@ public class BankProcessor(IBankApi bankApi)
         }
         catch (Exception e)
         {
-            return PaymentProcessingResult.Failure($"Bank API client has thrown an exception: {e.Message}", PaymentStatus.Rejected);
+            return PaymentProcessingResult.Failure($"Bank API client has thrown an exception: {e.Message}", PaymentStatus.Declined);
         }
         
         // PaymentStatus.Rejected could be used here to handle and track bad API responses
         if (result == null)
         {
-            return PaymentProcessingResult.Failure($"Bank API didn't return a result", PaymentStatus.Rejected);
+            return PaymentProcessingResult.Failure($"Bank API didn't return a result", PaymentStatus.Declined);
         }
         
         if (!result.IsSuccessStatusCode)
-            return PaymentProcessingResult.Failure($"Bank API error: {result.StatusCode}", PaymentStatus.Rejected);
+            return PaymentProcessingResult.Failure($"Bank API error: {result.StatusCode}", PaymentStatus.Declined);
         
         if (result.Content == null)
         {
-            return PaymentProcessingResult.Failure("Bank API returned empty response.", PaymentStatus.Rejected);
+            return PaymentProcessingResult.Failure("Bank API returned empty response.", PaymentStatus.Declined);
         }
 
         var status = result.Content.Authorized ? PaymentStatus.Authorized : PaymentStatus.Declined;

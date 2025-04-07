@@ -15,17 +15,14 @@ public class PaymentsController(PaymentsRepository paymentsRepository, BankProce
     public async Task<ActionResult<PostPaymentResponse>> PostPaymentAsync([FromBody] PostPaymentRequest request)
     {
         var processingResult = await bankProcessor.ProcessPayment(request);
+        var postPaymentResponse = CreatePostPaymentResponse(request, processingResult.Status, processingResult.ErrorMessage);
+        
         if (!processingResult.IsSuccess)
         {
-            return BadRequest(new
-            {
-                error = processingResult.ErrorMessage
-            });
+            return new BadRequestObjectResult(postPaymentResponse);
         }
-
-        var postPaymentResponse = CreatePostPaymentResponse(request, processingResult.Status!.Value);
-        paymentsRepository.Add(postPaymentResponse);
         
+        paymentsRepository.Add(postPaymentResponse);
         return Ok(postPaymentResponse);
     }
     
@@ -37,7 +34,10 @@ public class PaymentsController(PaymentsRepository paymentsRepository, BankProce
         return new OkObjectResult(payment);
     }
     
-    private static PostPaymentResponse CreatePostPaymentResponse(PostPaymentRequest request, PaymentStatus status)
+    private static PostPaymentResponse CreatePostPaymentResponse(
+        PostPaymentRequest request, 
+        PaymentStatus status,
+        string? errorMessage)
     {
         return new PostPaymentResponse
         {
@@ -47,7 +47,8 @@ public class PaymentsController(PaymentsRepository paymentsRepository, BankProce
             CardNumberLastFour = int.Parse(request.CardNumber[^4..]),
             ExpiryMonth = request.ExpiryMonth,
             ExpiryYear = request.ExpiryYear,
-            Status = status
+            Status = status,
+            Error = errorMessage
         };
     }
 }

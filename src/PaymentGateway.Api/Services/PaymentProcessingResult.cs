@@ -7,7 +7,7 @@ public record PaymentProcessingResult
     public bool IsSuccess { get; init; }
     public string? ErrorMessage { get; init; }
 
-    public PaymentStatus? Status { get; init; }
+    public PaymentStatus Status { get; init; }
 
     public static PaymentProcessingResult Success(PaymentStatus status) =>
         new() { IsSuccess = true, Status = status};

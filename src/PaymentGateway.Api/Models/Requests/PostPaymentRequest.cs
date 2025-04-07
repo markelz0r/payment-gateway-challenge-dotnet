@@ -12,7 +12,7 @@ public record PostPaymentRequest : IValidatableObject
     [Required, Range(1, 12)]
     public required int ExpiryMonth { get; init; }
 
-    [Required, Range(1, 9999)]
+    [Required, Range(1, 9998)]
     public required int ExpiryYear { get; init; }
 
     [Required, IsoCurrency]

@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Mvc;
 using PaymentGateway.Api.ApiClients;
+using PaymentGateway.Api.Models;
+using PaymentGateway.Api.Models.Responses;
 using PaymentGateway.Api.Services;
 
 using Refit;
@@ -14,6 +17,21 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<PaymentsRepository>();
 builder.Services.AddScoped<BankProcessor>();
+
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errorResponse = new PostPaymentResponse
+        {
+            Id = Guid.NewGuid(),
+            Status = PaymentStatus.Rejected,
+            Error = "Validation failed: " + string.Join("; ", context.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))
+        };
+
+        return new BadRequestObjectResult(errorResponse);
+    };
+});
 
 builder.Services.AddRefitClient<IBankApi>()
     .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://localhost:8080/"));
