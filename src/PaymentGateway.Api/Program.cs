@@ -1,4 +1,7 @@
+using PaymentGateway.Api.ApiClients;
 using PaymentGateway.Api.Services;
+
+using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +13,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<PaymentsRepository>();
+builder.Services.AddScoped<BankProcessor>();
+
+builder.Services.AddRefitClient<IBankApi>()
+    .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://localhost:8080/"));
 
 var app = builder.Build();
 
