@@ -33,8 +33,10 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     };
 });
 
+var bankApiBaseUrl = builder.Configuration["BankApi:BaseUrl"] ?? "http://localhost:8080";
+
 builder.Services.AddRefitClient<IBankApi>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://localhost:8080/"));
+    .ConfigureHttpClient(c => c.BaseAddress = new Uri(bankApiBaseUrl));
 
 var app = builder.Build();
 

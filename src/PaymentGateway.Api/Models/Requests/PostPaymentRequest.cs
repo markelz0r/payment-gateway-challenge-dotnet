@@ -23,8 +23,9 @@ public record PostPaymentRequest : IValidatableObject
     [Required, Range(1, int.MaxValue)]
     public required int Amount { get; init; }
 
-    [Required, Range(100, 9999)]
-    public required int Cvv { get; init; }
+    [Required]
+    [RegularExpression(@"^\d{3,4}$", ErrorMessage = "CVV must be 3 or 4 digits.")]
+    public required string Cvv { get; init; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext context)
     {

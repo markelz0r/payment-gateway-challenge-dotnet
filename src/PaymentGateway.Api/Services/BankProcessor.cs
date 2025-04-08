@@ -49,6 +49,6 @@ public class BankProcessor(IBankApi bankApi)
             $"{expiryMonthString}/{expiryYearString}",
             request.Currency,
             request.Amount,
-            request.Cvv.ToString());
+            request.Cvv);
     }
 }
