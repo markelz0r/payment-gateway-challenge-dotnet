@@ -142,4 +142,12 @@ public class PaymentGatewayIntegrationTests(IntegrationTestFixture fixture)
         Assert.Equal(amount, repositoryContent.Amount);
         Assert.Equal(PaymentStatus.Declined, repositoryContent.Status);
     }
+    
+    [Fact]
+    public async Task GetPayment_ShouldReturnNotFound()
+    {
+        var repositoryResponse = await fixture.Client.GetAsync($"api/Payments/123");
+        
+        Assert.Equal(HttpStatusCode.NotFound, repositoryResponse.StatusCode);
+    }
 }
