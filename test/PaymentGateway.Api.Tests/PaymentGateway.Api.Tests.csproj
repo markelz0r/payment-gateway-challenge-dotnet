@@ -28,9 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="imposters\bank_simulator.ejs">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <None Remove="imposters\bank_simulator.ejs" />
   </ItemGroup>
 
 </Project>

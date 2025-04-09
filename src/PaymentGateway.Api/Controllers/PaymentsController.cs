@@ -46,7 +46,7 @@ public class PaymentsController(PaymentsRepository paymentsRepository, BankProce
             Id = Guid.NewGuid(),
             Amount = request.Amount,
             Currency = request.Currency,
-            CardNumberLastFour = int.Parse(request.CardNumber[^4..]),
+            CardNumberLastFour = request.CardNumber[^4..],
             ExpiryMonth = request.ExpiryMonth,
             ExpiryYear = request.ExpiryYear,
             Status = status,

@@ -1,74 +1,54 @@
 using System.Net;
 using System.Net.Http.Json;
 
-using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Containers;
+using PaymentGateway.Api.Models;
+using PaymentGateway.Api.Models.Responses;
 
 namespace PaymentGateway.Api.Tests.Integration;
 
-public class PaymentGatewayIntegrationTests : IAsyncLifetime
+[Collection("IntegrationTests")]
+public class PaymentGatewayIntegrationTests(IntegrationTestFixture fixture)
 {
-    private const int ApiPort = 5067;
-    private const int BankSimulatorPort = 8080;
-
-    private IContainer _bankSimulator;
-    private IContainer _paymentGatewayApi;
-
-    public async Task InitializeAsync()
-    {
-        _bankSimulator = new ContainerBuilder()
-            .WithImage("bbyars/mountebank:2.8.1")
-            .WithWorkingDirectory(CommonDirectoryPath.GetSolutionDirectory().DirectoryPath)
-            .WithName("test-bank-simulator")
-            .WithPortBinding(2525, 2525)
-            .WithPortBinding(BankSimulatorPort, BankSimulatorPort)
-            .WithBindMount(Path.GetFullPath("imposters"), "/imposters")
-            .WithCommand("--configfile /imposters/bank_simulator.ejs --allowInjection")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(2525))
-            .Build();
-
-        await _bankSimulator.StartAsync();
-
-        var image = new ImageFromDockerfileBuilder()
-            .WithDockerfileDirectory(CommonDirectoryPath.GetSolutionDirectory(), string.Empty)
-            .WithDockerfile("Dockerfile")
-            // .WithDeleteIfExists(true)
-            // .WithName("test-payment-gateway-image") 
-            .Build();
-        
-        await image.CreateAsync()
-            .ConfigureAwait(false);
-        
-        // Start the Payment Gateway API
-        _paymentGatewayApi = new ContainerBuilder()
-            .WithImage(image)
-            .WithName("test-payment-gateway")
-            .WithPortBinding(ApiPort, ApiPort)
-            .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
-            .WithEnvironment("ASPNETCORE_URLS", $"http://+:{ApiPort}")
-            .WithEnvironment("BankApi__BaseUrl", $"http://test-bank-simulator:{BankSimulatorPort}")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(ApiPort))
-            .DependsOn(_bankSimulator)
-            .Build();
-        
-        await _paymentGatewayApi.StartAsync();
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _paymentGatewayApi.StopAsync();
-        await _bankSimulator.StopAsync();
-    }
-    
     [Fact]
     public async Task PostPayment_ShouldReturnAuthorized()
     {
-        using var httpClient = new HttpClient();
-        httpClient.BaseAddress = new Uri($"http://localhost:{ApiPort}");
-
+        const string cardNumber = "4012888888881881";
+        const int expiryMonth = 5;
+        const int expiryYear = 2030;
+        const string currency = "USD";
+        const int amount = 100;
+        const string cvv = "123";
+        
         var request = new
         {
-            cardNumber = "4012888888881881",
+            cardNumber,
+            expiryMonth,
+            expiryYear,
+            currency,
+            amount,
+            cvv
+        };
+
+        var response = await fixture.Client.PostAsJsonAsync("/api/payments", request);
+
+        var content = await response.Content.ReadFromJsonAsync<PostPaymentResponse>();
+        
+        Assert.Equal(cardNumber[^4..], content!.CardNumberLastFour);
+        Assert.Equal(expiryMonth, content.ExpiryMonth);
+        Assert.Equal(expiryYear, content.ExpiryYear);
+        Assert.Equal(currency, content.Currency);
+        Assert.Equal(amount, content.Amount);
+        
+        Assert.Equal(PaymentStatus.Authorized, content!.Status);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task PostPayment_ShouldReturnDeclined()
+    {
+        var request = new
+        {
+            cardNumber = "4012888888881882",
             expiryMonth = 12,
             expiryYear = 2030,
             currency = "USD",
@@ -76,10 +56,90 @@ public class PaymentGatewayIntegrationTests : IAsyncLifetime
             cvv = "123"
         };
 
-        var response = await httpClient.PostAsJsonAsync("/api/payments", request);
+        var response = await fixture.Client.PostAsJsonAsync("/api/payments", request);
+        var content = await response.Content.ReadFromJsonAsync<PostPaymentResponse>();
         
-        var content = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Authorized", content);
+        Assert.Equal(PaymentStatus.Declined, content!.Status);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPayment_ShouldReturnRecentAuthorisedPayment()
+    {
+        const string cardNumber = "4012888888881881";
+        const int expiryMonth = 5;
+        const int expiryYear = 2030;
+        const string currency = "USD";
+        const int amount = 100;
+        const string cvv = "123";
+        
+        var request = new
+        {
+            cardNumber,
+            expiryMonth,
+            expiryYear,
+            currency,
+            amount,
+            cvv
+        };
+        
+        var response = await fixture.Client.PostAsJsonAsync("/api/payments", request);
+        var content = await response.Content.ReadFromJsonAsync<PostPaymentResponse>();
+        
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var id = content!.Id;
+
+        var repositoryResponse = await fixture.Client.GetAsync($"api/Payments/{id}");
+        var repositoryContent = await repositoryResponse.Content.ReadFromJsonAsync<PostPaymentResponse>();
+        
+        Assert.Equal(HttpStatusCode.OK, repositoryResponse.StatusCode);
+        Assert.Equal(id, repositoryContent!.Id);
+        Assert.Equal(cardNumber[^4..], repositoryContent.CardNumberLastFour);
+        Assert.Equal(expiryMonth, repositoryContent.ExpiryMonth);
+        Assert.Equal(expiryYear, repositoryContent.ExpiryYear);
+        Assert.Equal(currency, repositoryContent.Currency);
+        Assert.Equal(amount, repositoryContent.Amount);
+        Assert.Equal(PaymentStatus.Authorized, repositoryContent.Status);
+    }
+    
+    [Fact]
+    public async Task GetPayment_ShouldReturnRecentDeclinedPayment()
+    {
+        const string cardNumber = "4012888888881882";
+        const int expiryMonth = 5;
+        const int expiryYear = 2030;
+        const string currency = "USD";
+        const int amount = 100;
+        const string cvv = "123";
+        
+        var request = new
+        {
+            cardNumber,
+            expiryMonth,
+            expiryYear,
+            currency,
+            amount,
+            cvv
+        };
+        
+        var response = await fixture.Client.PostAsJsonAsync("/api/payments", request);
+        var content = await response.Content.ReadFromJsonAsync<PostPaymentResponse>();
+        
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var id = content!.Id;
+
+        var repositoryResponse = await fixture.Client.GetAsync($"api/Payments/{id}");
+        var repositoryContent = await repositoryResponse.Content.ReadFromJsonAsync<PostPaymentResponse>();
+        
+        Assert.Equal(HttpStatusCode.OK, repositoryResponse.StatusCode);
+        Assert.Equal(id, repositoryContent!.Id);
+        Assert.Equal(cardNumber[^4..], repositoryContent.CardNumberLastFour);
+        Assert.Equal(expiryMonth, repositoryContent.ExpiryMonth);
+        Assert.Equal(expiryYear, repositoryContent.ExpiryYear);
+        Assert.Equal(currency, repositoryContent.Currency);
+        Assert.Equal(amount, repositoryContent.Amount);
+        Assert.Equal(PaymentStatus.Declined, repositoryContent.Status);
     }
 }
