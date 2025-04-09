@@ -38,6 +38,7 @@ public class PaymentGatewayIntegrationTests(IntegrationTestFixture fixture)
         Assert.Equal(expiryYear, content.ExpiryYear);
         Assert.Equal(currency, content.Currency);
         Assert.Equal(amount, content.Amount);
+        Assert.Null(content.Error);
         
         Assert.Equal(PaymentStatus.Authorized, content!.Status);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -60,6 +61,7 @@ public class PaymentGatewayIntegrationTests(IntegrationTestFixture fixture)
         var content = await response.Content.ReadFromJsonAsync<PostPaymentResponse>();
         
         Assert.Equal(PaymentStatus.Declined, content!.Status);
+        Assert.Null(content.Error);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
